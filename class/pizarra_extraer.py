@@ -93,9 +93,74 @@ def getMundialCambios(var01, var02, var03, var04, var05, var06, var07, var08, va
     except requests.ConnectionError:
         response = 0
 
+def getMonedaCambios(var01, var02, var03, var04, var05, var06, var07, var08, var09):
+    try:
+        response        = requests.get(var01)
+        soupResponse    = BeautifulSoup(response.content, 'html.parser')
+
+        if var02 == 1:
+            soupContent = soupResponse.find('div', {'id' : 'cotizaciones1'})
+        elif var02 == 5:
+            soupContent = soupResponse.find('div', {'id' : 'cotizaciones5'})
+        
+        soupDiv         = soupContent.find('div', {'class' : 'portfolio-item'})
+        soupTable       = soupDiv.find('table')
+        soupForm        = soupContent.find('form', {'method' : 'post'}).get_text().replace('Última actualización:', '').replace('Las cotizaciones de divisas por Sucursales', '')
+        soupFecha       = soupForm.replace('\n', '').replace('\r', '').replace('\t', '').replace(' ', '')
+        str_fecha2      = soupFecha[:10] + ' ' + soupFecha[10:]
+
+        for index in range(1, 8):
+            soupTr          = soupTable.find_all('tr')[index]
+            soupTdMoneda    = soupTr.find_all('td')[1].text
+
+            if soupTdMoneda.upper() == 'DOLAR': 
+                str_compra    = soupTr.find_all('td')[2].get_text().replace('.', '').replace(' ', '')
+                str_venta     = soupTr.find_all('td')[3].get_text().replace('.', '').replace(' ', '')
+                connMYSQL('A', var03, 1, str_compra, str_venta, str_fecha2)
+
+            elif soupTdMoneda.upper() == 'DOLAR X REAL':
+                str_compra    = soupTr.find_all('td')[2].get_text().replace(',', '.').replace(' ', '')
+                str_venta     = soupTr.find_all('td')[3].get_text().replace(',', '.').replace(' ', '')
+                connMYSQL('A', var04, 1, str_compra, str_venta, str_fecha2)
+
+            elif soupTdMoneda.upper() == 'DOLAR X PESOS':
+                str_compra    = soupTr.find_all('td')[2].get_text().replace(',', '.').replace(' ', '')
+                str_venta     = soupTr.find_all('td')[3].get_text().replace(',', '.').replace(' ', '')
+                connMYSQL('A', var05, 1, str_compra, str_venta, str_fecha2)
+
+            elif soupTdMoneda.upper() == 'REAL':
+                str_compra    = soupTr.find_all('td')[2].get_text().replace('.', '').replace(' ', '')
+                str_venta     = soupTr.find_all('td')[3].get_text().replace('.', '').replace(' ', '')
+                connMYSQL('A', var06, 1, str_compra, str_venta, str_fecha2)
+
+            elif soupTdMoneda.upper() == 'EURO':
+                str_compra    = soupTr.find_all('td')[2].get_text().replace('.', '').replace(' ', '')
+                str_venta     = soupTr.find_all('td')[3].get_text().replace('.', '').replace(' ', '')
+                connMYSQL('A', var07, 1, str_compra, str_venta, str_fecha2)
+
+            elif soupTdMoneda.upper() == 'DOLAR X EURO':
+                str_compra    = soupTr.find_all('td')[2].get_text().replace(',', '.').replace(' ', '')
+                str_venta     = soupTr.find_all('td')[3].get_text().replace(',', '.').replace(' ', '')
+                connMYSQL('A', var08, 1, str_compra, str_venta, str_fecha2)
+
+            elif soupTdMoneda.upper() == 'PESOS':
+                str_compra    = soupTr.find_all('td')[2].get_text().replace('.', '').replace(' ', '')
+                str_venta     = soupTr.find_all('td')[3].get_text().replace('.', '').replace(' ', '')
+                connMYSQL('A', var09, 1, str_compra, str_venta, str_fecha2)
+        else:
+            print("Finally finished!")
+    except requests.ConnectionError:
+        response    = 0
+
 if __name__ == "__main__":
     #MUNDIAL CAMBIOS SUCURSAL VENDOME
     getMundialCambios('http://www.mundialcambios.com.py/json.php', '3', 71, 75, 76, 72, 74, 77, 73)
 
     #MUNDIAL CAMBIOS SUCURSAL GLOBO CENTER
     getMundialCambios('http://www.mundialcambios.com.py/json.php', '4', 85, 89, 90, 86, 88, 91, 87)
+
+    #LA MONEDA CAMBIOS SUCURSAL CENTRO
+    getMonedaCambios('http://www.lamoneda.com.py', 1, 29, 33, 34, 30, 32, 35, 31)
+
+    #LA MONEDA CAMBIOS SUCURSAL JEBAI
+    getMonedaCambios('http://www.lamoneda.com.py', 5, 176, 180, 181, 177, 179, 182, 178)

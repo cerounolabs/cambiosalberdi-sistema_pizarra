@@ -30,10 +30,9 @@ def connMYSQL(var01, var02, var03, var04, var05, var06):
                 str_cursor.execute(str_update, (var01, var02, var03))
 
                 str_insert = "INSERT INTO COTIZACIONDETALLE(codEstado, codCotizacion, codCotizacionTipo, impCompra, impVenta, fecPizarra, fecAlta, horAlta, usuAlta) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
-                str_cursor.execute(str_insert, (var01, var02, var03, var04, var05, var06, str_hora, str_fecha, str_usuario))
+                str_cursor.execute(str_insert, (var01, var02, var03, var04, var05, var06, str_fecha, str_hora, str_usuario))
 
                 str_connection.commit()
-
     except mysql.connector.Error as error:
         print("Errors: {}".format(error))
     finally:
@@ -152,6 +151,147 @@ def getMonedaCambios(var01, var02, var03, var04, var05, var06, var07, var08, var
     except requests.ConnectionError:
         response    = 0
 
+def getMazzaHnos(var01, var02, var03, var04, var05, var06):
+    try:
+        response        = requests.get(var01)
+        soupResponse    = BeautifulSoup(response.content, 'html.parser')
+        soupContent     = soupResponse.find('div', {'id' : 'contenedor90'})
+        
+        str_fecha       = soupContent.find('div', {'id' : 'ult_actualizacion2'}).get_text().replace('Ultima Actualizacion ', '')
+        str_fecha2      = str_fecha[6:-6] + '-' + str_fecha[3:-11] + '-' + str_fecha[:2] + ' ' +  str_fecha[11:]
+
+        for index in range(0, 5):
+            soupDiv         = soupContent.find_all('div', {'id' : 'item'})[index]
+            str_moneda      = soupDiv.find_all('div')[1].get_text().replace('\n', '').replace('\r', '').replace('\t', '').replace(' ', '')
+
+            if str_moneda.upper() == 'DOLAREE.UU':
+                str_compra      = soupDiv.find_all('div')[2].get_text().replace('\n', '').replace('\r', '').replace('\t', '').replace(' ', '')
+                str_venta       = soupDiv.find_all('div')[3].get_text().replace('\n', '').replace('\r', '').replace('\t', '').replace(' ', '')
+                connMYSQL('A', var02, 1, str_compra, str_venta, str_fecha2)
+
+            elif str_moneda.upper() == 'EURO':
+                str_compra      = soupDiv.find_all('div')[2].get_text().replace('\n', '').replace('\r', '').replace('\t', '').replace(' ', '')
+                str_venta       = soupDiv.find_all('div')[3].get_text().replace('\n', '').replace('\r', '').replace('\t', '').replace(' ', '')
+                connMYSQL('A', var03, 1, str_compra, str_venta, str_fecha2)
+
+            elif str_moneda.upper() == 'REAL':
+                str_compra      = soupDiv.find_all('div')[2].get_text().replace('\n', '').replace('\r', '').replace('\t', '').replace(' ', '')
+                str_venta       = soupDiv.find_all('div')[3].get_text().replace('\n', '').replace('\r', '').replace('\t', '').replace(' ', '')
+                connMYSQL('A', var04, 1, str_compra, str_venta, str_fecha2)
+
+            elif str_moneda.upper() == 'GUARANI/PESO':
+                str_compra      = soupDiv.find_all('div')[2].get_text().replace('\n', '').replace('\r', '').replace('\t', '').replace(' ', '')
+                str_venta       = soupDiv.find_all('div')[3].get_text().replace('\n', '').replace('\r', '').replace('\t', '').replace(' ', '')
+                connMYSQL('A', var05, 1, str_compra, str_venta, str_fecha2)
+
+            elif str_moneda.upper() == 'DOLAR/REAL':
+                str_compra      = soupDiv.find_all('div')[2].get_text().replace('\n', '').replace('\r', '').replace('\t', '').replace(' ', '')
+                str_venta       = soupDiv.find_all('div')[3].get_text().replace('\n', '').replace('\r', '').replace('\t', '').replace(' ', '')
+                connMYSQL('A', var06, 1, str_compra, str_venta, str_fecha2)
+        else:
+            print("Finally finished!")
+    except requests.ConnectionError:
+        response    = 0
+
+def get2Arroyos(var01, var02, var03, var04, var05, var06, var07, var08, var09):
+    try:
+        response        = requests.get(var01)
+        soupResponse    = BeautifulSoup(response.content, 'html.parser')
+
+        if var02 == 1:
+            soupContent     = soupResponse.find('div', {'id' : 'Posadas'})
+            indexRange      = 8
+        elif var02 == 2:
+            soupContent     = soupResponse.find('div', {'id' : 'Formosa'})
+            indexRange      = 6
+
+        soupTable       = soupContent.find('table')
+        soupTBody       = soupTable.find('tbody')
+
+        for index in range(0, indexRange):
+            soupTr          = soupTBody.find_all('tr')[index]
+
+            str_moneda      = soupTr.find_all('td')[0].get_text().replace('\n', '').replace('\r', '').replace('\t', '').replace(' ', '')
+            str_compra      = soupTr.find_all('td')[1].get_text().replace('\n', '').replace('\r', '').replace('\t', '').replace(' ', '')
+            str_venta       = soupTr.find_all('td')[2].get_text().replace('\n', '').replace('\r', '').replace('\t', '').replace(' ', '')
+            str_datetime    = datetime.datetime.now()
+            str_fecha2      = str(str_datetime.year) + '-' + str(str_datetime.month).zfill(2) + '-' + str(str_datetime.day).zfill(2) + ' ' + str(str_datetime.hour).zfill(2) + ':' + str(str_datetime.minute).zfill(2)
+
+            if str_moneda.upper() == 'DÓLAR':
+                connMYSQL('A', var03, 1, str_compra, str_venta, str_fecha2)
+
+            elif str_moneda.upper() == 'REAL':
+                connMYSQL('A', var04, 1, str_compra, str_venta, str_fecha2)
+
+            elif str_moneda.upper() == 'EURO':
+                connMYSQL('A', var05, 1, str_compra, str_venta, str_fecha2)
+
+            elif str_moneda.upper() == 'GUARANÍ':
+                connMYSQL('A', var06, 1, str_compra, str_venta, str_fecha2)
+
+            elif str_moneda.upper() == 'DÓLARXREAL':
+                connMYSQL('A', var07, 1, str_compra, str_venta, str_fecha2)
+
+            elif str_moneda.upper() == 'EUROXDÓLAR':
+                connMYSQL('A', var08, 1, str_compra, str_venta, str_fecha2)
+
+            elif str_moneda.upper() == 'DÓLARXGUARANÍ':
+                connMYSQL('A', var09, 1, str_compra, str_venta, str_fecha2)
+        else:
+            print("Finally finished!")
+    except requests.ConnectionError:
+        response    = 0
+
+def getBonanzaCambios(var01, var02, var03, var04, var05, var06, var07, var08):
+    try:
+        response        = requests.get(var01)
+        soupResponse    = BeautifulSoup(response.content, 'html.parser')
+        soupCambios     = soupResponse.find('section', {'class' : {'azul'}})
+
+        str_datetime    = datetime.datetime.now()
+        str_fecha2      = str(str_datetime.year) + '-' + str(str_datetime.month).zfill(2) + '-' + str(str_datetime.day).zfill(2) + ' ' + str(str_datetime.hour).zfill(2) + ':' + str(str_datetime.minute).zfill(2)
+
+        for index in range(0, 4):
+            soupDiv         = soupCambios.find_all('div', {'class' : 'monedas'})[index]
+            str_moneda      = soupDiv.find('h4').get_text().replace('\n', '').replace('\r', '').replace('\t', '').replace(' ', '')
+            str_compra      = soupDiv.find_all('div', {'class' : 'col-xs-5'})[1].get_text().replace('\n', '').replace('\r', '').replace('\t', '').replace(' ', '').replace('.', '')
+            str_venta       = soupDiv.find_all('div', {'class' : 'col-xs-5'})[3].get_text().replace('\n', '').replace('\r', '').replace('\t', '').replace(' ', '').replace('.', '')
+
+
+            if str_moneda.upper() == 'DOLARAMERICANO':
+                connMYSQL('A', var02, 1, str_compra, str_venta, str_fecha2)
+
+            elif str_moneda.upper() == 'REAL':
+                connMYSQL('A', var03, 1, str_compra, str_venta, str_fecha2)
+
+            elif str_moneda.upper() == 'EURO':
+                connMYSQL('A', var04, 1, str_compra, str_venta, str_fecha2)
+
+            elif str_moneda.upper() == 'PESOARGENTINO':
+                connMYSQL('A', var05, 1, str_compra, str_venta, str_fecha2)
+        else:
+            print("Finally finished!")
+
+
+        for index in range(0, 3):
+            soupArbitraje   = soupResponse.find_all('div', {'class' : {'col-sm-7 col-xs-7 cambioside'}})[index]
+            str_moneda      = soupArbitraje.find_all('h5')[0].get_text().replace('\n', '').replace('\r', '').replace('\t', '').replace(' ', '')
+            str_compra      = soupArbitraje.find_all('h5')[1].get_text().replace('\n', '').replace('\r', '').replace('\t', '').replace(' ', '').replace('.', '').replace(',', '.').replace('Compra', '')
+            str_venta       = soupArbitraje.find_all('h5')[2].get_text().replace('\n', '').replace('\r', '').replace('\t', '').replace(' ', '').replace('.', '').replace(',', '.').replace('Venta', '')
+            
+            if str_moneda.upper() == 'DOLARAMERICANOXEURO':
+               connMYSQL('A', var06, 1, str_compra, str_venta, str_fecha2)
+
+            elif str_moneda.upper() == 'DOLARAMERICANOXPESO':
+                connMYSQL('A', var07, 1, str_compra, str_venta, str_fecha2)
+
+            elif str_moneda.upper() == 'DOLARAMERICANOXREAL':
+                connMYSQL('A', var08, 1, str_compra, str_venta, str_fecha2)
+        else:
+            print("Finally finished!")
+    except requests.ConnectionError:
+        response    = 0
+
 if __name__ == "__main__":
     #MUNDIAL CAMBIOS SUCURSAL VENDOME
     getMundialCambios('http://www.mundialcambios.com.py/json.php', '3', 71, 75, 76, 72, 74, 77, 73)
@@ -159,8 +299,26 @@ if __name__ == "__main__":
     #MUNDIAL CAMBIOS SUCURSAL GLOBO CENTER
     getMundialCambios('http://www.mundialcambios.com.py/json.php', '4', 85, 89, 90, 86, 88, 91, 87)
 
+    #MUNDIAL CAMBIOS SUCURSAL KM4
+    getMundialCambios('http://www.mundialcambios.com.py/json.php', '2', 43, 47, 48, 44, 46, 49, 45)
+
     #LA MONEDA CAMBIOS SUCURSAL CENTRO
     getMonedaCambios('http://www.lamoneda.com.py', 1, 29, 33, 34, 30, 32, 35, 31)
 
     #LA MONEDA CAMBIOS SUCURSAL JEBAI
     getMonedaCambios('http://www.lamoneda.com.py', 5, 176, 180, 181, 177, 179, 182, 178)
+
+    #MAZZA HNOS SUCURSAL CENTRO
+    getMazzaHnos('http://www.mazzahnos.com.ar/cotizaciones.php?sucursal=2', 55, 56, 51, 52, 54)
+
+    #MAZZA HNOS CASA CENTRAL
+    getMazzaHnos('http://www.mazzahnos.com.ar/cotizaciones.php?sucursal=1', 188, 189, 184, 185, 187)
+
+    #2 ARROYOS POSADA
+    get2Arroyos('https://www.dosarroyoscambios.com', 1, 62, 58, 60, 59, 61, 63, 57)
+
+    #2 ARROYOS FORMOSA
+    get2Arroyos('https://www.dosarroyoscambios.com', 2, 195, 191, 193, 192, 194, 0, 190)
+
+    #BONANZA CAMBIOS
+    getBonanzaCambios('http://www.bonanzacambios.com.py/index.php', 36, 37, 39, 38, 42, 41, 40)

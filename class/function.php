@@ -27,6 +27,24 @@
         return $result;
     }
 
+    function formatColor($var01){
+        switch ($var01) {
+            case 'cotizacion-igual':
+                $result = 'color-igual';
+                break;
+            
+            case 'cotizacion-sube':
+                $result = 'color-sube';
+                break;
+            
+            case 'cotizacion-baja':
+                $result = 'color-baja';
+                break;
+        }
+
+        return $result;              
+    }
+
     function post_curl($url, $data, $headers){
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -109,6 +127,9 @@
         $str_conn       = getConexion();
         $str_qry        = "SELECT
         i.codCotizacionDetalle AS      cotizacion_detalle_codigo,
+        i.cssEstado            AS      cotizacion_detalle_css_estado,
+        i.cssCompra            AS      cotizacion_detalle_css_compra,
+        i.cssVenta             AS      cotizacion_detalle_css_venta,
         i.impCompra            AS      cotizacion_detalle_compra,
         i.impVenta             AS      cotizacion_detalle_venta,
         i.fecPizarra           AS      cotizacion_detalle_fecha_pizarra,
@@ -153,7 +174,7 @@
         INNER JOIN MONEDA h ON f.codMonedaRelacion = h.codMoneda
         INNER JOIN COTIZACIONDETALLE i ON f.codCotizacion = i.codCotizacion
 
-        WHERE a.codTablero = '$var01' AND c.codSucursal = '$var02' AND b.codEstado = 'A' AND i.CodEstado = 'A'
+        WHERE a.codTablero = '$var01' AND c.codSucursal = '$var02' AND b.codEstado = 'A' AND i.CodEstado = 'A' AND f.CodEstado = 'A'
 
         ORDER BY d.nomEmpresa, c.nomSucursal, e.nomCiudad";
 
@@ -190,7 +211,11 @@
                     "moneda_relacionada_nombre"                 => $row00['moneda_relacionada_nombre'],
                     "moneda_relacionada_bcp"                    => $row00['moneda_relacionada_bcp'],
                     "moneda_relacionada_path"                   => $row00['moneda_relacionada_path'],
+
                     "cotizacion_detalle_codigo"                 => $row00['cotizacion_detalle_codigo'],
+                    "cotizacion_detalle_css_estado"             => $row00['cotizacion_detalle_css_estado'],
+                    "cotizacion_detalle_css_compra"             => $row00['cotizacion_detalle_css_compra'],
+                    "cotizacion_detalle_css_venta"              => $row00['cotizacion_detalle_css_venta'],
                     "cotizacion_detalle_compra"                 => $row00['cotizacion_detalle_compra'],
                     "cotizacion_detalle_venta"                  => $row00['cotizacion_detalle_venta'],
                     "cotizacion_detalle_fecha_pizarra"          => $row00['cotizacion_detalle_fecha_pizarra'],
@@ -234,7 +259,7 @@
     
                 case 'EUR':
                     $insert = setCotizacionDetalle('A', $var06, 1, $impCom, $impVen, $fecHor, $var08);
-                    $insert = setCotizacionDetalle('A', $var07, 1, $arbVen, $arbCom, $fecHor, $var08);
+                    $insert = setCotizacionDetalle('A', $var07, 1, $arbCom, $arbVen, $fecHor, $var08);
                     break;
             }
         }
@@ -263,6 +288,12 @@
                             $result = $str_conn->insert_id;
                             $result = 'Se inserto el registro de forma correcta';
                         }
+                    }
+                } else {
+                    $str_qry = "UPDATE COTIZACIONDETALLE SET cssEstado = 'H' WHERE codCotizacion = '$var02' AND codCotizacionTipo = '$var03' AND codEstado = '$var01'";
+
+                    if ($str_conn->query($str_qry) === TRUE) {
+                        $result = 'Se actualizo el registro de forma correcta';
                     }
                 }
             }

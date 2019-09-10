@@ -5,40 +5,62 @@ import json
 import requests
 import mysql.connector
 import datetime
+import decimal
 
 from bs4 import BeautifulSoup
 from mysql.connector import Error
 
-
 def connMYSQL(var01, var02, var03, var04, var05, var06):
     try:
+        str_datetime    = datetime.datetime.now()
+        str_fecha       = str(str_datetime.year) + '-' + str(str_datetime.month).zfill(2) + '-' + str(str_datetime.day).zfill(2)
+        str_hora        = str(str_datetime.hour).zfill(2) + ':' + str(str_datetime.minute).zfill(2) + ':' + str(str_datetime.second).zfill(2)
+        str_usuario     = 'SISTEMA'
+
         str_connection  = mysql.connector.connect(host='10.168.196.187', database='tablero', user='tablero_admin', password='t4bl3r02019')
         str_cursor      = str_connection.cursor(buffered=True)
+
+        if str(str_datetime.hour).zfill(2) == '05' and str(str_datetime.minute).zfill(2) == '00':
+            str_update   = "UPDATE COTIZACIONDETALLE SET cssEstado = 'H', cssCompra = 'cotizacion-igual', cssVenta = 'cotizacion-igual' WHERE codEstado = %s AND codCotizacion = %s AND codCotizacionTipo = %s"
+            str_cursor.execute(str_update, (var01, var02, var03))
 
         str_select      = "SELECT a.impCompra, a.impVenta FROM COTIZACIONDETALLE a WHERE a.codEstado = %s AND a.codCotizacion = %s AND a.codCotizacionTipo = %s"
         str_cursor.execute(str_select, (var01, var02, var03))
         str_row         = str_cursor.fetchall()
 
         for row in str_row:
-            if row[0] != var04 or row[1] != var05:
-                str_datetime = datetime.datetime.now()
-                str_fecha    = str(str_datetime.year) + '-' + str(str_datetime.month).zfill(2) + '-' + str(str_datetime.day).zfill(2)
-                str_hora     = str(str_datetime.hour).zfill(2) + ':' + str(str_datetime.minute).zfill(2) + ':' + str(str_datetime.second).zfill(2)
-                str_usuario  = 'SISTEMA'
+            if (decimal.Decimal(row[0]) == decimal.Decimal(var04)) and (decimal.Decimal(row[1]) == decimal.Decimal(var05)):
+                str_update   = "UPDATE COTIZACIONDETALLE SET cssEstado = 'H' WHERE codEstado = %s AND codCotizacion = %s AND codCotizacionTipo = %s"
+                str_cursor.execute(str_update, (var01, var02, var03))
+            else:
+                css_estado   = 'A'
+                css_compra   = formatColor(row[0], decimal.Decimal(var04))
+                css_venta    = formatColor(row[1], decimal.Decimal(var05))
 
-                str_update = "UPDATE COTIZACIONDETALLE SET codEstado = 'H' WHERE codEstado = %s AND codCotizacion = %s AND codCotizacionTipo = %s"
+                str_update   = "UPDATE COTIZACIONDETALLE SET codEstado = 'H' WHERE codEstado = %s AND codCotizacion = %s AND codCotizacionTipo = %s"
                 str_cursor.execute(str_update, (var01, var02, var03))
 
-                str_insert = "INSERT INTO COTIZACIONDETALLE(codEstado, codCotizacion, codCotizacionTipo, impCompra, impVenta, fecPizarra, fecAlta, horAlta, usuAlta) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
-                str_cursor.execute(str_insert, (var01, var02, var03, var04, var05, var06, str_fecha, str_hora, str_usuario))
-
-                str_connection.commit()
+                str_insert   = "INSERT INTO COTIZACIONDETALLE(codEstado, codCotizacion, codCotizacionTipo, impCompra, impVenta, cssEstado, cssCompra, cssVenta, fecPizarra, fecAlta, horAlta, usuAlta) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+                str_cursor.execute(str_insert, (var01, var02, var03, var04, var05, css_estado, css_compra, css_venta, var06, str_fecha, str_hora, str_usuario))
+                
+            str_connection.commit()
     except mysql.connector.Error as error:
         print("Errors: {}".format(error))
     finally:
         if (str_connection.is_connected()):
             str_cursor.close()
             str_connection.close()
+
+def formatColor(var01, var02):
+    if var01 == var02:
+        return 'cotizacion-igual'
+    elif var01 > var02:
+        return 'cotizacion-baja'
+    elif var01 < var02:
+        return 'cotizacion-sube'
+
+def formatNumer(var01):
+    return ('%.3f' % var01).rstrip('0').rstrip('.')
 
 def getMundialCambios(var01, var02, var03, var04, var05, var06, var07, var08, var09):
     headers = {
@@ -246,17 +268,20 @@ def getBonanzaCambios(var01, var02, var03, var04, var05, var06, var07, var08):
     try:
         response        = requests.get(var01)
         soupResponse    = BeautifulSoup(response.content, 'html.parser')
-        soupCambios     = soupResponse.find('section', {'class' : {'azul'}})
+        soupSection     = soupResponse.find('section', {'class' : {'flat-tab-services'}})
 
         str_datetime    = datetime.datetime.now()
         str_fecha2      = str(str_datetime.year) + '-' + str(str_datetime.month).zfill(2) + '-' + str(str_datetime.day).zfill(2) + ' ' + str(str_datetime.hour).zfill(2) + ':' + str(str_datetime.minute).zfill(2)
+        
+        soupDivCambio   = soupSection.find_all('div', {'class' : {'one-half'}})[0]
+        soupCambio      = soupDivCambio.find('section', {'class' : {'flat-pricing style1'}})
+        
+        for index in range(1, 2):
+            soupTr          = soupCambio.find_all('tr')[index]
 
-        for index in range(0, 4):
-            soupDiv         = soupCambios.find_all('div', {'class' : 'monedas'})[index]
-            str_moneda      = soupDiv.find('h4').get_text().replace('\n', '').replace('\r', '').replace('\t', '').replace(' ', '')
-            str_compra      = soupDiv.find_all('div', {'class' : 'col-xs-5'})[1].get_text().replace('\n', '').replace('\r', '').replace('\t', '').replace(' ', '').replace('.', '')
-            str_venta       = soupDiv.find_all('div', {'class' : 'col-xs-5'})[3].get_text().replace('\n', '').replace('\r', '').replace('\t', '').replace(' ', '').replace('.', '')
-
+            str_moneda      = soupTr.find_all('td', {'class' : {'title'}})[0].get_text().replace('\n', '').replace('\r', '').replace('\t', '').replace(' ', '')
+            str_compra      = soupTr.find_all('td', {'class' : {'moneda'}})[0].get_text().replace('\n', '').replace('\r', '').replace('\t', '').replace(' ', '').replace('.', '')
+            str_venta       = soupTr.find_all('td', {'class' : {'moneda'}})[1].get_text().replace('\n', '').replace('\r', '').replace('\t', '').replace(' ', '').replace('.', '')
 
             if str_moneda.upper() == 'DOLARAMERICANO':
                 connMYSQL('A', var02, 1, str_compra, str_venta, str_fecha2)
@@ -269,28 +294,64 @@ def getBonanzaCambios(var01, var02, var03, var04, var05, var06, var07, var08):
 
             elif str_moneda.upper() == 'PESOARGENTINO':
                 connMYSQL('A', var05, 1, str_compra, str_venta, str_fecha2)
+
         else:
             print("Finally finished!")
+        
 
-
+        soupArbitraje   = soupResponse.find('section', {'class' : {'flat-pricing stylearbi'}})
+        soupTBody       = soupArbitraje.find('tbody')
+        
         for index in range(0, 3):
-            soupArbitraje   = soupResponse.find_all('div', {'class' : {'col-sm-7 col-xs-7 cambioside'}})[index]
-            str_moneda      = soupArbitraje.find_all('h5')[0].get_text().replace('\n', '').replace('\r', '').replace('\t', '').replace(' ', '')
-            str_compra      = soupArbitraje.find_all('h5')[1].get_text().replace('\n', '').replace('\r', '').replace('\t', '').replace(' ', '').replace('.', '').replace(',', '.').replace('Compra', '')
-            str_venta       = soupArbitraje.find_all('h5')[2].get_text().replace('\n', '').replace('\r', '').replace('\t', '').replace(' ', '').replace('.', '').replace(',', '.').replace('Venta', '')
+            soupRow         = soupTBody.find_all('tr')[index]
+            str_moneda      = soupRow.find('td', {'class' : 'title'}).get_text().replace('\n', '').replace('\r', '').replace('\t', '').replace(' ', '')
+            str_compra      = soupRow.find_all('td', {'class' : 'moneda'})[0].get_text().replace('\n', '').replace('\r', '').replace('\t', '').replace(' ', '').replace(',', '.')
+            str_venta       = soupRow.find_all('td', {'class' : 'moneda'})[1].get_text().replace('\n', '').replace('\r', '').replace('\t', '').replace(' ', '').replace(',', '.')
             
-            if str_moneda.upper() == 'DOLARAMERICANOXEURO':
-               connMYSQL('A', var06, 1, str_compra, str_venta, str_fecha2)
+            if str_moneda.upper() == 'DolarAmericanoxEuro'.upper():
+                connMYSQL('A', var06, 1, str_compra, str_venta, str_fecha2)
 
-            elif str_moneda.upper() == 'DOLARAMERICANOXPESO':
+            elif str_moneda.upper() == 'DolarAmericanoxPesoArgentino'.upper():
                 connMYSQL('A', var07, 1, str_compra, str_venta, str_fecha2)
 
-            elif str_moneda.upper() == 'DOLARAMERICANOXREAL':
+            elif str_moneda.upper() == 'DolarAmericanoxReal'.upper():
                 connMYSQL('A', var08, 1, str_compra, str_venta, str_fecha2)
         else:
             print("Finally finished!")
+
     except requests.ConnectionError:
         response    = 0
+
+def getCambiosChaco(var01, var02, var03, var04, var05, var06, var07, var08):
+    try:
+        response    = requests.get(var01, timeout=10).json()
+
+        for data in response['items']:
+            str_fecha   = data['updatedAt']
+            str_fecha2  = str_fecha[:-8].replace('T', ' ')
+
+            str_moneda  = data['isoCode']
+            str_compra  = formatNumer(data['purchasePrice'])
+            str_venta   = formatNumer(data['salePrice'])
+            arb_compra  = formatNumer(data['purchaseArbitrage'])
+            arb_venta   = formatNumer(data['saleArbitrage'])
+
+            if str_moneda.upper() == 'USD':
+                connMYSQL('A', var02, 1, str_compra, str_venta, str_fecha2)
+
+            elif str_moneda.upper() == 'BRL':
+                connMYSQL('A', var03, 1, str_compra, str_venta, str_fecha2)
+                connMYSQL('A', var04, 1, arb_compra, arb_venta, str_fecha2)
+
+            elif str_moneda.upper() == 'ARS':
+                connMYSQL('A', var05, 1, str_compra, str_venta, str_fecha2)
+                connMYSQL('A', var06, 1, arb_compra, arb_venta, str_fecha2)
+
+            elif str_moneda.upper() == 'EUR':
+                connMYSQL('A', var07, 1, str_compra, str_venta, str_fecha2)
+                connMYSQL('A', var08, 1, arb_compra, arb_venta, str_fecha2)
+    except requests.ConnectionError:
+        response = 0
 
 if __name__ == "__main__":
     #MUNDIAL CAMBIOS SUCURSAL VENDOME
@@ -320,5 +381,11 @@ if __name__ == "__main__":
     #2 ARROYOS FORMOSA
     get2Arroyos('https://www.dosarroyoscambios.com', 2, 195, 191, 193, 192, 194, 0, 190)
 
-    #BONANZA CAMBIOS
+    #CAMBIOS CHACO ADRIAN JARA
+    getCambiosChaco('http://www.cambioschaco.com.py/api/branch_office/9/exchange', 15, 16, 19, 17, 20, 18, 21)
+
+    #CAMBIOS CHACO MONSEÑOR RODRIGUEZ
+    getCambiosChaco('http://www.cambioschaco.com.py/api/branch_office/32/exchange', 169, 170, 173, 171, 174, 172, 175)
+
+    #BONANZA CAMBIOS CASA CENTRAL
     getBonanzaCambios('http://www.bonanzacambios.com.py/index.php', 36, 37, 39, 38, 42, 41, 40)
